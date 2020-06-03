@@ -10,9 +10,9 @@ class Tracer:
     @staticmethod
     def trace(address) -> enumerate:
         number = 0
-        with Popen(["tracert", "-d", "-w", "500", "-4", address], stdout=PIPE) as p:
+        with Popen(["tracert", "-d", "-w", "500", "-4", address], stdout=PIPE, encoding='cp866') as p:
             while True:
-                line = str(p.stdout.readline(), "cp866")
+                line = p.stdout.readline()
                 if not line:
                     break
                 ip = Tracer._get_ip4_from_trace_line(line)
@@ -34,15 +34,19 @@ class Tracer:
     @staticmethod
     def get_as(ip: str):
         try:
-            result = IPWhois(ip).lookup_whois()
-            AS = result["asn"]
-            Country = result["nets"][0]["country"]
-            Provider = result["nets"][0]["description"].replace('\n', ' ').strip()
+            result = IPWhois(ip).lookup_rdap(asn_methods=['dns', 'whois', 'http'])
+            AS = result['asn'] if result['asn'] != 'NA' else 'Unknown'
+
+            network = result['network']
+            country = network['country'] if network['country'] else 'Unknown'
+
+            remarks = network['remarks']
+            provider = remarks[0]['description'].replace('\n', ' ').strip() if remarks else 'Unknown'
         except IPDefinedError:
             AS = "Unknown"
-            Country = "Unknown"
-            Provider = "Unknown"
-        return AS, Country, Provider
+            country = "Unknown"
+            provider = "Unknown"
+        return AS, country, provider
 
     @staticmethod
     def print_data(number: int, ip: str, AS: str, country: str, provider: str, first: bool = False):
